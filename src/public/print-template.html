@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Notary Document - Print</title>
+<style>
+@keyframes gradient-animation {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+body {
+    font-family: "Times New Roman", serif;
+    background-color: #525659; /* Dark background for contrast on screen */
+    /* "Crazy" animated gradient background */
+    background: linear-gradient(-45deg, #003152, #1e9df1, #5a5f65, #dc8000);
+    background-size: 400% 400%;
+    animation: gradient-animation 15s ease infinite;
+    min-height: 100vh;
+    margin: 0;
+    padding: 40px 0; /* Add some padding for better spacing */
+    box-sizing: border-box;
+    perspective: 1500px; /* Enable 3D space */
+}
+hr {
+    border: none;
+    border-top: 1px solid black;
+    margin: 8px 0;
+}
+.page {
+    width: 210mm;
+    min-height: 297mm;
+    padding: 15mm;
+    margin: 20px auto; /* Center the page on screen with vertical margin */
+    margin: 20px auto;
+    position: relative;
+    box-sizing: border-box;
+    background-color: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2); /* Add a shadow for depth */
+    /* More dramatic shadow and initial 3D tilt */
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+    transform: rotateX(10deg) rotateY(-5deg) translateZ(50px);
+    transition: transform 0.6s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.header {
+    text-align: center;
+}
+
+.row {
+    display: flex;
+    justify-content: space-between;
+}
+
+.person-block {
+    margin-top: 20px;
+}
+
+.person-block p {
+    line-height: 1.3;
+    margin-top: 6px;
+    margin-bottom: 6px;
+}
+
+.flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.photo {
+    width: 120px;
+    height: 120px;
+    border: 1px solid black;
+    object-fit: cover;
+}
+
+.thumb {
+    width: 120px;
+    height: 80px;
+    border: 1px solid black;
+    object-fit: contain;
+}
+
+.signature-line {
+    border-top: 1px solid black;
+    width: 200px;
+    text-align: center;
+    margin-top: 20px;
+}
+
+.stamp {
+    position: absolute;
+    bottom: 80px;
+    left: 60px;
+}
+
+.notary {
+    position: absolute;
+    bottom: 80px;
+    right: 60px;
+    text-align: center;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 0; /* The .page padding will handle the margin */
+  }
+  body {
+    background: none; /* Remove screen background for printing */
+    background: none; /* Remove screen styles for printing */
+    padding: 0;
+    perspective: none;
+  }
+  .page {
+    margin: 0;
+    box-shadow: none; /* Remove screen shadow for printing */
+    border: none;
+    transform: none; /* Reset transform for printing */
+  }
+}
+</style>
+</head>
+<body>
+
+<div id="doc"></div>
+
+<script>
+window.onload = function() {
+    const printData = JSON.parse(localStorage.getItem('printData'));
+    if (!printData) {
+        document.body.innerHTML = '<h1>Error: No print data found. Please generate the document from the main application.</h1>';
+        return;
+    }
+
+    generate(printData);
+
+    // Use a small timeout to ensure content is rendered before printing
+    setTimeout(() => {
+        window.print();
+        // After printing, the window will try to close itself when it's re-focused.
+        window.onfocus = function() {
+            setTimeout(function () {
+                window.close();
+            }, 500);
+        }
+    }, 500);
+};
+
+function generate(data) {
+    let content = "";
+    const { srNo, kNo, docDate, persons } = data;
+
+    for (let i = 0; i < persons.length; i++) {
+        const person = persons[i];
+        content += `
+        ${i > 0 ? "<p style='text-align:center;'><b>And</b></p>" : ""}
+
+        <div class="person-block">
+            <p>
+            I Mr <span>${person.name || ''}</span> aged 
+            <span>${person.age || ''}</span> yrs.
+            </p>
+
+            <p>
+            Residing at <span>${person.addr || ''}</span>
+            </p>
+
+            <p>
+            Aadhar Card No: <span>${person.aadhar || ''}</span>
+            </p>
+
+            <div class="flex">
+                <img src="${person.photo || ''}" class="photo">
+
+                <div>
+                    <div class="signature-line">Signature</div>
+                </div>
+
+                <img src="${person.thumb || ''}" class="thumb">
+            </div>
+            <hr>
+        </div>
+        `;
+    }
+
+    document.getElementById("doc").innerHTML = `
+    <div class="page">
+        <div class="header">
+            <h2>Shri S. V. Tarte Advocate & Notary</h2>
+            <small>Head Office: Plot No.121, Tarte Plaza, Dombivli (E)</small>
+        </div>
+
+        <div class="row">
+            <div>Sr No: ${srNo || ''}</div>
+            <div>Date: ${docDate || ''}</div>
+        </div>
+
+        <div>K - ${kNo || ''}</div>
+
+        <hr style="margin: 10px 0; border: 1px solid black;">
+
+        ${content}
+
+        <p>
+        That we have executed the annexed Gift Deed on 
+        <span>${docDate || ''}</span>.<br>
+        Pertaining to Flat Purpose.<br>
+        Signed beside our photo herein above & document contains 4 pages.
+        </p>
+        <hr>
+
+        <div class="stamp">
+            <b>NOTARY</b><br>
+            Govt. of India
+        </div>
+
+        <div class="notary">
+            BEFORE ME<br>
+            ADVOCATE & NOTARY
+        </div>
+    </div>
+    `;
+}
+</script>
+
+</body>
+</html>

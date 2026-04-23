@@ -86,7 +86,21 @@ body {
 @media print {
   @page {
     size: A4;
-    margin: 20mm;
+    margin: 0;
+  }
+
+  /* --- Isolate the document for printing --- */
+  body * {
+    visibility: hidden;
+  }
+  #document-to-print, #document-to-print * {
+    visibility: visible;
+  }
+  #document-to-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
   }
 
   .no-print, nav, header:not(.document-header), .sidebar {
@@ -107,14 +121,6 @@ body {
   }
   
   /* Break structural constraints for full visibility */
-  html, body, #root, .flex, .flex-1, .h-screen, .min-h-screen {
-    height: auto !important;
-    min-height: 0 !important;
-    overflow: visible !important;
-    overflow-y: visible !important;
-    display: block !important;
-  }
-
   table {
     width: 100% !important;
     border-collapse: collapse !important;
@@ -123,11 +129,12 @@ body {
 
   /* Standardized inputs for print */
   input, textarea {
-    border-bottom: 1px solid black !important;
+    border: none !important;
     background: transparent !important;
     padding: 0 4px !important;
-    font-weight: bold !important;
+    font-weight: normal !important;
     color: black !important;
+    resize: none !important;
   }
 
   header, footer {
