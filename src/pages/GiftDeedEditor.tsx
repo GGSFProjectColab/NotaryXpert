@@ -22,23 +22,35 @@ interface Person {
 // Utility Component for Webcam Capture (from original file, slightly adapted)
 function WebcamCapture({ onCapture, onClose }: { onCapture: (img: string) => void, onClose: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
+    let active = true;
     async function startCamera() {
       try {
-        const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-        setStream(s);
+        const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 } } });
+        if (!active) {
+           // If the component already unmounted before camera initialization finished!
+           s.getTracks().forEach(t => t.stop());
+           return;
+        }
+        streamRef.current = s;
         if (videoRef.current) videoRef.current.srcObject = s;
       } catch (err) {
-        console.error("Camera access error:", err);
-        alert("Could not access camera. Please check permissions.");
-        onClose();
+        if (active) {
+          console.error("Camera access error:", err);
+          alert("Could not access camera. Please check permissions.");
+          onClose();
+        }
       }
     }
     startCamera();
-    return () => stream?.getTracks().forEach(track => track.stop()); // eslint-disable-line react-hooks/exhaustive-deps
-  }, [onClose]);
+    return () => {
+      active = false;
+      streamRef.current?.getTracks().forEach(track => track.stop());
+      if (videoRef.current) videoRef.current.srcObject = null;
+    };
+  }, []); // Run exactly once on mount!
 
   const capture = () => {
     if (videoRef.current) {
@@ -112,6 +124,37 @@ export function GiftDeedEditor() {
     if (!activeCapture) return;
     updatePerson(activeCapture.personId, activeCapture.type, img);
     setActiveCapture(null);
+  };
+
+  const startFingerprintScan = async (personId: string) => {
+    try {
+      // For external USB Scanners (e.g. Mantra MFS100), the local desktop wrapper typically hosts a REST API on localhost:8000
+      // We broadcast a capture request. If it fails, they likely don't have the scanner connected.
+      const payload = { "Quality": 60, "TimeOut": 10 };
+      const response = await Promise.race([
+        fetch('http://localhost:8000/mfs100/capture', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify(payload)
+        }),
+        new Promise((_, r) => setTimeout(() => r(new Error('timeout')), 3000))
+      ]) as any;
+
+      if (response && response.ok) {
+         const data = await response.json();
+         // If a base64 Bitmap is returned securely via RD Service overriding driver
+         if (data && data.Base64BMP && data.Base64BMP.length > 100) {
+            updatePerson(personId, 'thumb', `data:image/bmp;base64,${data.Base64BMP}`);
+            alert('Fingerprint captured natively from external USB Scanner!');
+            return;
+         }
+      }
+      throw new Error('Scanner not found or rejected payload');
+    } catch (e) {
+      // Fallback: If no scanner is physically detected, fall seamlessly back to the WebCam modal!
+      console.log('No USB Fingerprint scanner detected, falling back to WebCam interface...', e);
+      setActiveCapture({ personId, type: 'thumb' });
+    }
   };
 
   const handleFileUpload = (personId: string, type: 'photo' | 'thumb', e: React.ChangeEvent<HTMLInputElement>) => {
@@ -571,8 +614,8 @@ export function GiftDeedEditor() {
                     </div>
                     <div className="w-[1px] h-6 bg-outline-variant/30 hidden md:block"></div>
                     <div className="flex gap-2 items-center">
-                      <button onClick={() => setActiveCapture({ personId: person.id, type: 'thumb' })} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors font-medium text-xs">
-                        <Fingerprint size={14} /> {person.thumb ? 'Retake Thumb Photo' : 'Capture Thumb Photo'}
+                      <button onClick={() => startFingerprintScan(person.id)} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors font-medium text-xs">
+                        <Fingerprint size={14} /> {person.thumb ? 'Rescan Thumbprint' : 'Scan Thumbprint'}
                       </button>
                       <label className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-high text-on-surface-variant rounded hover:bg-surface-container-highest transition-colors cursor-pointer font-medium text-xs shadow-sm">
                         Upload Thumb <input type="file" hidden accept="image/*" onChange={(e) => handleFileUpload(person.id, 'thumb', e)} />
