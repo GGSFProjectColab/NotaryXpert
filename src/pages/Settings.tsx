@@ -2,6 +2,8 @@ import { Layout } from "../components/layout/Layout";
 import { TopBar } from "../components/layout/TopBar";
 import { User, SlidersHorizontal, CreditCard, Shield, Info } from "lucide-react";
 import { useState, useEffect } from "react";
+import { db } from "../firebase";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 export function Settings() {
   const [licenseNumber, setLicenseNumber] = useState("NX-2023-8941");
@@ -9,15 +11,34 @@ export function Settings() {
 
   useEffect(() => {
     const savedLicense = localStorage.getItem("notaryLicenseNumber");
-    const savedRegister = localStorage.getItem("registerNumber");
     if (savedLicense) setLicenseNumber(savedLicense);
-    if (savedRegister) setRegisterNumber(savedRegister);
+
+    const fetchSettings = async () => {
+      try {
+        const docSnap = await getDoc(doc(db, "settings", "config"));
+        if (docSnap.exists() && docSnap.data().registerNumber) {
+          setRegisterNumber(docSnap.data().registerNumber);
+        } else {
+          const savedRegister = localStorage.getItem("registerNumber");
+          if (savedRegister) setRegisterNumber(savedRegister);
+        }
+      } catch (err) {
+        console.error("Failed to fetch settings from Firebase", err);
+      }
+    };
+    fetchSettings();
   }, []);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     localStorage.setItem("notaryLicenseNumber", licenseNumber);
-    localStorage.setItem("registerNumber", registerNumber);
-    alert("Settings saved successfully!");
+    try {
+      await setDoc(doc(db, "settings", "config"), { registerNumber }, { merge: true });
+      localStorage.setItem("registerNumber", registerNumber);
+      alert("Settings saved successfully to Firebase Cloud!");
+    } catch (e) {
+      console.error("Failed to save to Firebase:", e);
+      alert("Failed to save settings to Cloud.");
+    }
   };
 
   return (

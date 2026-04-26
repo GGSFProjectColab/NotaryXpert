@@ -5,7 +5,8 @@ import { Camera, Fingerprint, Printer, X, RefreshCw, Plus, Gavel, Search, Loader
 import { db, storage } from "../firebase";
 import { collection, addDoc, getDoc, doc, updateDoc, setDoc, query, orderBy, limit, getDocs } from "firebase/firestore";
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
-
+import { pdf } from '@react-pdf/renderer';
+import NotaryPdfTemplate from '../components/NotaryPdfTemplate';
 // New interface for a person
 interface Person {
   id: string;
@@ -97,7 +98,8 @@ function WebcamCapture({ onCapture, onClose }: { onCapture: (img: string) => voi
 
 export function GiftDeedEditor() {
   const [srNo, setSrNo] = useState("");
-  const [kNo, setKNo] = useState(() => localStorage.getItem("registerNumber") || "");
+  const [kNo, setKNo] = useState("");
+  const [pageNo, setPageNo] = useState("");
   const [docName, setDocName] = useState("Gift Deed");
   const [docPurpose, setDocPurpose] = useState("Flat Purpose");
   const [docDate, setDocDate] = useState(new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }));
@@ -242,6 +244,16 @@ export function GiftDeedEditor() {
       }
     };
     fetchNextSrNo();
+
+    const fetchGlobalSettings = async () => {
+      try {
+         const docSnap = await getDoc(doc(db, "settings", "config"));
+         if (docSnap.exists() && docSnap.data().registerNumber) {
+            setKNo(prev => prev === "" ? docSnap.data().registerNumber : prev);
+         }
+      } catch(e) { console.error("Error fetching register number:", e); }
+    };
+    fetchGlobalSettings();
   }, []);
 
   const [knownClients, setKnownClients] = useState<Person[]>([]);
@@ -319,6 +331,7 @@ export function GiftDeedEditor() {
           const data = docSnap.data();
           if (data.srNo) setSrNo(data.srNo);
           if (data.kNo) setKNo(data.kNo);
+          if (data.pageNo) setPageNo(data.pageNo);
           if (data.docDate) setDocDate(data.docDate);
           if (data.persons) setPersons(data.persons);
           if (data.pdfUrl) setPdfUrl(data.pdfUrl);
@@ -380,9 +393,14 @@ export function GiftDeedEditor() {
         }
       }
 
+      if (kNo) {
+        await setDoc(doc(db, "settings", "config"), { registerNumber: kNo }, { merge: true }).catch(console.error);
+      }
+
       const docData = {
         srNo: srNo || "",
         kNo: kNo || "",
+        pageNo: pageNo || "",
         docDate: docDate || "",
         clientName: clientName || "",
         persons: personsToSave,
@@ -420,38 +438,37 @@ export function GiftDeedEditor() {
   };
 
   const generateMergedPdfBlob = async (): Promise<Blob> => {
-      const element = document.getElementById('document-to-print');
-      if (!element) throw new Error("Document preview block not found.");
-      const html2pdf = (window as any).html2pdf;
-      if (!html2pdf) throw new Error("PDF Library missing, please wait or refresh.");
+      let basePdfPageCount = 0;
+      let basePdfBytes: ArrayBuffer | null = null;
+      let docA: any = null;
 
-      const opt = {
-        margin:       0,
-        filename:     `NotaryDoc_${srNo || '01'}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { 
-           scale: 2, 
-           useCORS: true,
-           onclone: (doc: Document) => {
-              const inputs = doc.querySelectorAll('input, textarea');
-              inputs.forEach((input: any) => {
-                 input.style.border = 'none';
-                 input.style.fontWeight = 'normal';
-                 input.classList.remove('border-b', 'border-dashed', 'border-[#0000004d]', 'font-bold');
-              });
-           }
-        },
-        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
-      };
-
-      const notaryPdfArrayBuffer = await html2pdf().set(opt).from(element).output('arraybuffer');
+      const PDFLib = (window as any).PDFLib;
+      if (!PDFLib) throw new Error("PDF Library missing.");
 
       if (basePdfFile) {
+          basePdfBytes = await basePdfFile.arrayBuffer();
+          docA = await PDFLib.PDFDocument.load(basePdfBytes);
+          basePdfPageCount = docA.getPageCount();
+      }
+
+      // Generate the vector Notary Page
+      const blob = await pdf(
+        <NotaryPdfTemplate 
+          persons={persons as any} 
+          srNo={srNo} 
+          kNo={kNo} 
+          pageNo={pageNo}
+          docDate={docDate} 
+          docName={docName} 
+          docPurpose={docPurpose} 
+          basePdfPageCount={basePdfPageCount}
+        />
+      ).toBlob();
+      
+      const notaryPdfArrayBuffer = await blob.arrayBuffer();
+
+      if (basePdfFile && docA) {
          try {
-             const PDFLib = (window as any).PDFLib;
-             if (!PDFLib) throw new Error("PDF Library missing.");
-             const basePdfBytes = await basePdfFile.arrayBuffer();
-             const docA = await PDFLib.PDFDocument.load(basePdfBytes);
              const docB = await PDFLib.PDFDocument.load(notaryPdfArrayBuffer);
              const mergedDoc = await PDFLib.PDFDocument.create();
              const copiedPagesA = await mergedDoc.copyPages(docA, docA.getPageIndices());
@@ -465,6 +482,7 @@ export function GiftDeedEditor() {
              alert("Failed to merge the Original PDF. Processing the standalone Notary Page instead.");
          }
       }
+
       return new Blob([notaryPdfArrayBuffer], { type: 'application/pdf' });
   };
 
@@ -483,8 +501,9 @@ export function GiftDeedEditor() {
     if (!validatePersons()) return;
     setIsUploadingPdf(true);
     try {
+      const safeClientName = persons.length > 0 && persons[0].name ? persons[0].name.trim().replace(/\s+/g, '_') : 'Client';
       const mergedBlob = await generateMergedPdfBlob();
-      const finalFile = new File([mergedBlob], `Merged_Document_${srNo || '01'}.pdf`, { type: 'application/pdf' });
+      const finalFile = new File([mergedBlob], `${safeClientName}_${srNo || '01'}.pdf`, { type: 'application/pdf' });
 
       const cloudName = "dsyow3tjq";
       const formData = new FormData();
@@ -633,8 +652,12 @@ export function GiftDeedEditor() {
               <input type="text" value={srNo} onChange={(e) => setSrNo(e.target.value)} className="w-full p-3 border border-outline-variant/40 rounded-lg bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary/50 outline-none transition-all font-medium text-sm" placeholder="e.g. 2024/01" />
             </div>
             <div>
-              <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Register Number</label>
+              <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Register No</label>
               <input type="text" value={kNo} onChange={(e) => setKNo(e.target.value)} className="w-full p-3 border border-outline-variant/40 rounded-lg bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary/50 outline-none transition-all font-medium text-sm" placeholder="e.g. 123" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Reg.Page No</label>
+              <input type="text" value={pageNo} onChange={(e) => setPageNo(e.target.value)} className="w-full p-3 border border-outline-variant/40 rounded-lg bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary/50 outline-none transition-all font-medium text-sm" placeholder="e.g. 12" />
             </div>
             <div>
               <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Document Name</label>
@@ -763,7 +786,7 @@ export function GiftDeedEditor() {
           </div>
         </div>
 
-        <div id="document-to-print" className="w-full flex flex-col items-center print:block print:w-[210mm] print:m-0 print:p-0">
+        <div id="document-to-print" className="w-full flex flex-col items-center print:block print:w-[210mm] print:m-0 print:p-0" style={{ color: '#000000' }}>
           {(() => {
             const chunks = [];
             const intermediateLimit = persons.filter(p => p.email && p.phone).length > 3 ? 3 : 4;
@@ -796,26 +819,38 @@ export function GiftDeedEditor() {
               return (
                <article 
                   key={pageIndex} 
-                  className={`bg-[#ffffff] w-[210mm] min-h-[297mm] overflow-visible shadow-[0_4px_12px_rgba(0,0,0,0.2)] relative flex flex-col p-[15mm] box-border print:shadow-none print:w-[210mm] print:max-w-none print:p-[15mm] print:m-0 ${pageIndex > 0 ? 'mt-8 print:mt-0 html2pdf__page-break' : 'my-[20px] print:m-0'}`} 
-                  style={{ fontFamily: '"Times New Roman", serif', pageBreakAfter: isLastPage ? 'auto' : 'always' }}
+                  className={`w-[210mm] min-h-[297mm] overflow-visible relative flex flex-col p-[15mm] box-border print:shadow-none print:w-[210mm] print:max-w-none print:p-[15mm] print:m-0 ${pageIndex > 0 ? 'mt-8 print:mt-0 html2pdf__page-break' : 'my-[20px] print:m-0'}`} 
+                  style={{ color: '#000000', backgroundColor: '#ffffff', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', fontFamily: '"Times New Roman", serif', pageBreakAfter: isLastPage ? 'auto' : 'always' }}
                >
+                 <img src="/2.png" alt="watermark" className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[60%] opacity-5 pointer-events-none z-0" />
                  
                  {pageIndex === 0 && (
                    <>
-                     <div className="text-center">
-                       <h2 className="font-bold text-2xl m-0">Mr. Sameer Shrikant Vispute</h2>
-                       <small>BLS., LLB., DIPL</small><br/>
-                       <small>Bombay High Court Notary (Govt. of India) </small><br />
-                       <small>Notary (Govt. of India) Reg. No. 57704</small>
-                       <br />
-                       <small>Shree Bhagwati Krupa, Pendse Nagar, Lane No 2, Dombivli (E), Dist. Thane - 421201.</small>
+                     <div className="flex justify-between items-center text-center">
+                       <img src="/1.png" alt="Logo 1" className="h-24 w-24" />
+                       <div className="flex-1 px-1">
+                         <div className="inline-block">
+                           <h2 className="font-bold text-2xl m-0">Mr. Sameer Shrikant Vispute</h2>
+                           <small className="block text-right">BLS., LLB., DIPL</small>
+                           <h4 className="font-bold text-xl m-0">Advocate High Court</h4>
+                         </div>
+                         <div className="font-black text-[1.1rem] leading-tight my-1.5 uppercase tracking-wide" style={{ color: '#b30000' }}>
+                          Notary  (Govt. of India) <br />Reg. No. 57704
+                         </div>
+                         <small>Mob. 8286000888 / 9933806888 | Email - advsameervispute@gmail.com</small>
+                         <br />                       
+                         <small className="block whitespace-nowrap text-[12px] tracking-tight">Shree Bhagwati Krupa, Pendse Nagar, Lane No 2, Dombivli (E), Dist. Thane - 421201.</small>
+                         <small className="block whitespace-nowrap text-[12px] tracking-tight">A002 Om Residency, Khambalpada, Off 90 Feet Road, Thakurli, Dombivli (E), Dist. Thane - 421201</small>
+                       </div>
+                       <img src="/3.png" alt="Logo 2" className="h-24 w-24" />
                      </div>
 
                      <div className="flex justify-between mt-4">
                        <div>Sr No: <span className="font-bold print:font-normal">{srNo}</span></div>
                        <div>Date: <span className="font-bold print:font-normal">{docDate}</span></div>
                      </div>
-                     <div>Register Number - <span className="font-bold print:font-normal">{kNo}</span></div>
+                     <div>Register No - <span className="font-bold print:font-normal">{kNo}</span></div>
+                     <div>Reg.Page No - <span className="font-bold print:font-normal">{pageNo}</span></div>
                      
                      <hr style={{ margin: "10px 0", borderTop: "1px solid black", borderBottom: 'none', borderLeft: 'none', borderRight: 'none' }} />
                    </>
@@ -824,32 +859,31 @@ export function GiftDeedEditor() {
                  <div className="flex-grow">
                    {chunk.map((person, index) => (
                      <div key={person.id}>
-                       <div className="mt-[10px]">
-                         <p style={{ lineHeight: 1.3, margin: 0, marginBottom: '16px' }}>
-                           I Mr <span className="font-bold print:font-normal">{person.name}</span> aged <span className="font-bold print:font-normal ml-1">{person.age}</span> yrs.<br />
-                           Residing at <span className="font-bold print:font-normal">{person.addr}</span><br />
-                           {person.aadhar && <>Aadhar Card No: <span className="font-bold print:font-normal">{person.aadhar}</span></>}
-                           {person.aadhar && person.pan && <span className="mx-2">|</span>}
-                           {person.pan && <>PAN Card No: <span className="font-bold print:font-normal">{person.pan}</span></>}
-                           {person.phone && <><br />Phone: <span className="font-bold print:font-normal">{person.phone}</span></>}
-                           {person.email && <><br />Email: <span className="font-bold print:font-normal">{person.email}</span></>}
-                         </p>
-                         <div className="flex justify-between items-center mt-4">
-                           <div>
-                             <div className="w-[200px] border-t border-[#000000] text-center mt-[20px] font-bold">Signature</div>
-                           </div>
+                       <div className="mt-[10px] flex justify-between">
+                         <div className="flex-1 pr-4">
+                           <p style={{ lineHeight: 1.3, margin: 0, marginBottom: '16px' }}>
+                             I Mr <span className="font-bold print:font-normal">{person.name}</span> aged <span className="font-bold print:font-normal ml-1">{person.age}</span> yrs.<br />
+                             Residing at <span className="font-bold print:font-normal">{person.addr}</span><br />
+                             {person.aadhar && <>Aadhar Card No: <span className="font-bold print:font-normal">{person.aadhar}</span></>}
+                             {person.aadhar && person.pan && <span className="mx-2">|</span>}
+                             {person.pan && <>PAN Card No: <span className="font-bold print:font-normal">{person.pan}</span></>}
+                             {person.phone && <><br />Phone: <span className="font-bold print:font-normal">{person.phone}</span></>}
+                             {person.email && <><br />Email: <span className="font-bold print:font-normal">{person.email}</span></>}
+                           </p>
                            
-                           <div className="flex flex-col items-center">
-                             <div className="w-[120px] h-[80px] border border-[#000000] relative flex items-center justify-center bg-[#f9fafb] overflow-hidden">
+                           <div className="mt-4 flex flex-col items-start">
+                             <div className="w-[120px] h-[80px] border relative flex items-center justify-center overflow-hidden" style={{ borderColor: '#000000', backgroundColor: '#f9fafb' }}>
                                {person.thumb && <img src={getSafeImageUrl(person.thumb)} crossOrigin="anonymous" className="w-full h-full object-contain p-1" alt="Thumbprint" />}
                              </div>
                            </div>
-                           
-                           <div className="flex flex-col items-center">
-                             <div className="w-[120px] h-[120px] border border-[#000000] relative flex items-center justify-center bg-[#f9fafb] overflow-hidden">
-                               {person.photo && <img src={getSafeImageUrl(person.photo)} crossOrigin="anonymous" className="w-full h-full object-cover" alt="Captured" />}
-                             </div>
+                         </div>
+                         
+                         <div className="flex flex-col items-center pl-4 shrink-0">
+                           <div className="w-[120px] h-[120px] border relative flex items-center justify-center overflow-hidden" style={{ borderColor: '#000000', backgroundColor: '#f9fafb' }}>
+                             {person.photo && <img src={getSafeImageUrl(person.photo)} crossOrigin="anonymous" className="w-full h-full object-cover" alt="Captured" />}
                            </div>
+                           
+                           <div className="w-[150px] border-t text-center mt-[50px] font-bold" style={{ borderColor: '#000000' }}>Signature</div>
                          </div>
                        </div>
                        <hr style={{ margin: "8px 0", borderTop: "1px solid black", borderBottom: 'none', borderLeft: 'none', borderRight: 'none' }} />
@@ -859,23 +893,17 @@ export function GiftDeedEditor() {
                    {isLastPage && (
                      <>
                         <p style={{ marginTop: '16px', lineHeight: '1.5' }}>
-                          That we have executed the annexed {docName || 'Gift Deed'} on <span className="font-bold print:font-normal">{docDate}</span>.<br />
-                          Pertaining to {docPurpose || 'Flat Purpose'}.<br />
-                          Signed beside our photo herein above & document contains {basePdfPageCount + chunks.length} pages.
+                          That I/we have executed the annexed {docName || 'Gift Deed'} dated <span className="font-bold print:font-normal">{docDate || '26th April 2026'}</span>, pertaining to the {docPurpose || '___'} purposes.<br />
+                          I/we state that I/we have signed and given left hand digital thumb in the said document beside our respective photographs appearing here in above, and that the said {docName || 'Gift Deed'} consists of {basePdfPageCount + chunks.length} pages.
                         </p>
                        <hr style={{ margin: "8px 0", borderTop: "1px solid black", borderBottom: 'none', borderLeft: 'none', borderRight: 'none' }} />
                      </>
                    )}
                  </div>
 
-                 {isLastPage && (
-                   <>
-                     <div className="absolute bottom-[80px] left-[60px]"><b>NOTARY</b><br/>Govt. of India</div>
-                     <div className="absolute bottom-[80px] right-[60px] text-center">BEFORE ME<br/><b>ADVOCATE & NOTARY</b></div>
-                   </>
-                 )}
+
                  
-                 <div className="absolute bottom-[30px] left-0 right-0 text-center text-xs text-black/70">
+                 <div className="absolute bottom-[30px] left-0 right-0 text-center text-xs" style={{ color: 'rgba(0,0,0,0.7)' }}>
                    Page {pageIndex + 1} of {chunks.length}
                  </div>
                </article>
