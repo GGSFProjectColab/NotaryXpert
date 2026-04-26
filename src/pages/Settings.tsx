@@ -104,23 +104,6 @@ export function Settings() {
                     </div>
                   </div>
 
-                  <div className="border-t border-outline-variant/15 pt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="flex flex-col gap-2 md:col-span-2">
-                      <label className="font-label text-sm font-medium text-on-surface-variant">Business Address</label>
-                      <input className="w-full bg-surface-container-highest border-transparent focus:border-primary/30 focus:bg-surface-container-lowest focus:ring-0 rounded-md font-body text-on-surface px-4 py-3 transition-all" type="text" defaultValue="100 Legal Plaza, Suite 400" />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="font-label text-sm font-medium text-on-surface-variant">City</label>
-                      <input className="w-full bg-surface-container-highest border-transparent focus:border-primary/30 focus:bg-surface-container-lowest focus:ring-0 rounded-md font-body text-on-surface px-4 py-3 transition-all" type="text" defaultValue="New York" />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="font-label text-sm font-medium text-on-surface-variant">State / Zip</label>
-                      <div className="flex gap-2">
-                        <input className="w-1/3 bg-surface-container-highest border-transparent focus:border-primary/30 focus:bg-surface-container-lowest focus:ring-0 rounded-md font-body text-on-surface px-4 py-3 transition-all" type="text" defaultValue="NY" />
-                        <input className="w-2/3 bg-surface-container-highest border-transparent focus:border-primary/30 focus:bg-surface-container-lowest focus:ring-0 rounded-md font-body text-on-surface px-4 py-3 transition-all" type="text" defaultValue="10001" />
-                      </div>
-                    </div>
-                  </div>
 
                   <div className="border-t border-outline-variant/15 pt-8 mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="flex flex-col gap-2">
