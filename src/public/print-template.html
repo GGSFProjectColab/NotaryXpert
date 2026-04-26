@@ -150,79 +150,124 @@ window.onload = function() {
 };
 
 function generate(data) {
-    let content = "";
-    const { srNo, kNo, docDate, persons } = data;
+    const { srNo, kNo, docDate, persons, docName, docPurpose, totalPages } = data;
+    const documentName = docName || "Gift Deed";
+    const documentPurpose = docPurpose || "Flat Purpose";
+    let fullHtml = "";
+    const chunks = [];
+    const intermediateLimit = persons.filter(p => p.email && p.phone).length > 3 ? 3 : 4;
 
-    for (let i = 0; i < persons.length; i++) {
-        const person = persons[i];
-        content += `
-        ${i > 0 ? "<p style='text-align:center;'><b>And</b></p>" : ""}
+    if (persons.length === 3) {
+        chunks.push(persons.slice(0, 2));
+        chunks.push(persons.slice(2, 3));
+    } else if (persons.length > 0) {
+        chunks.push(persons.slice(0, 3));
+        let i = 3;
+        while (i < persons.length) {
+            let remaining = persons.length - i;
+            if (remaining <= 3) {
+                chunks.push(persons.slice(i, i + remaining));
+                i += remaining;
+            } else if (remaining === 4 && intermediateLimit === 4) {
+                chunks.push(persons.slice(i, i + 3));
+                i += 3;
+            } else {
+                chunks.push(persons.slice(i, i + intermediateLimit));
+                i += intermediateLimit;
+            }
+        }
+    } else {
+        chunks.push([]);
+    }
 
-        <div class="person-block">
-            <p>
-            I Mr <span>${person.name || ''}</span> aged 
-            <span>${person.age || ''}</span> yrs.
-            </p>
+    for (let p = 0; p < chunks.length; p++) {
+        const chunk = chunks[p];
+        const isLastPage = p === chunks.length - 1;
+        
+        let content = "";
+        for (let i = 0; i < chunk.length; i++) {
+            const person = chunk[i];
+            const isFirstOverall = p === 0 && i === 0;
+            content += `
+            <div class="person-block">
+                <p style="line-height: 1.5; margin: 0 0 16px 0;">
+                I Mr <b>${person.name || ''}</b> aged <b>${person.age || ''}</b> yrs.<br>
+                Residing at <b>${person.addr || ''}</b><br>
+                Aadhar Card No: <b>${person.aadhar || ''}</b>
+                ${person.phone ? `<br>Phone: <b>${person.phone}</b>` : ''}
+                ${person.email ? `<br>Email: <b>${person.email}</b>` : ''}
+                </p>
 
-            <p>
-            Residing at <span>${person.addr || ''}</span>
-            </p>
+                <div class="flex">
+                    <img src="${person.photo || ''}" class="photo">
 
-            <p>
-            Aadhar Card No: <span>${person.aadhar || ''}</span>
-            </p>
+                    <div>
+                        <div class="signature-line">Signature</div>
+                    </div>
 
-            <div class="flex">
-                <img src="${person.photo || ''}" class="photo">
-
-                <div>
-                    <div class="signature-line">Signature</div>
+                    <img src="${person.thumb || ''}" class="thumb">
                 </div>
-
-                <img src="${person.thumb || ''}" class="thumb">
+                <hr>
             </div>
-            <hr>
+            `;
+        }
+
+        const pagesCount = totalPages || chunks.length;
+        const footer = isLastPage ? `
+        <p style="line-height: 1.5;">
+        That we have executed the annexed ${documentName} on <b>${docDate || ''}</b>.<br>
+        Pertaining to ${documentPurpose}.<br>
+        Signed beside our photo herein above & document contains ${pagesCount} pages.
+        </p>
+        <hr style="margin: 10px 0; border: 1px solid black;">
+        ` : "";
+
+        const header = p === 0 ? `
+            <div class="header">
+                <h2>Shri S. V. Tarte Advocate & Notary</h2>
+                <small>Head Office: Plot No.121, Tarte Plaza, Dombivli (E)</small>
+            </div>
+
+            <div class="row">
+                <div>Sr No: ${srNo || ''}</div>
+                <div>Date: ${docDate || ''}</div>
+            </div>
+
+            <div>Register Number - ${kNo || ''}</div>
+
+            <hr style="margin: 10px 0; border: 1px solid black;">
+        ` : "";
+
+        const stamps = isLastPage ? `
+            <div class="stamp">
+                <b>NOTARY</b><br>
+                Govt. of India
+            </div>
+
+            <div class="notary">
+                BEFORE ME<br>
+                ADVOCATE & NOTARY
+            </div>
+        ` : "";
+
+        const pageNumber = `
+            <div style="position: absolute; bottom: 30px; left: 0; right: 0; text-align: center; font-size: 12px; font-family: 'Times New Roman', serif; color: rgba(0,0,0,0.7);">
+                Page ${p + 1} of ${chunks.length}
+            </div>
+        `;
+
+        fullHtml += `
+        <div class="page" style="${p > 0 ? 'page-break-before: always;' : ''}">
+            ${header}
+            ${content}
+            ${footer}
+            ${stamps}
+            ${pageNumber}
         </div>
         `;
     }
 
-    document.getElementById("doc").innerHTML = `
-    <div class="page">
-        <div class="header">
-            <h2>Shri S. V. Tarte Advocate & Notary</h2>
-            <small>Head Office: Plot No.121, Tarte Plaza, Dombivli (E)</small>
-        </div>
-
-        <div class="row">
-            <div>Sr No: ${srNo || ''}</div>
-            <div>Date: ${docDate || ''}</div>
-        </div>
-
-        <div>K - ${kNo || ''}</div>
-
-        <hr style="margin: 10px 0; border: 1px solid black;">
-
-        ${content}
-
-        <p>
-        That we have executed the annexed Gift Deed on 
-        <span>${docDate || ''}</span>.<br>
-        Pertaining to Flat Purpose.<br>
-        Signed beside our photo herein above & document contains 4 pages.
-        </p>
-        <hr>
-
-        <div class="stamp">
-            <b>NOTARY</b><br>
-            Govt. of India
-        </div>
-
-        <div class="notary">
-            BEFORE ME<br>
-            ADVOCATE & NOTARY
-        </div>
-    </div>
-    `;
+    document.getElementById("doc").innerHTML = fullHtml;
 }
 </script>
 

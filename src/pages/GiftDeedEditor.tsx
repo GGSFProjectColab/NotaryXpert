@@ -96,13 +96,35 @@ function WebcamCapture({ onCapture, onClose }: { onCapture: (img: string) => voi
 
 export function GiftDeedEditor() {
   const [srNo, setSrNo] = useState("");
-  const [kNo, setKNo] = useState("");
+  const [kNo, setKNo] = useState(() => localStorage.getItem("registerNumber") || "");
+  const [docName, setDocName] = useState("Gift Deed");
+  const [docPurpose, setDocPurpose] = useState("Flat Purpose");
   const [docDate, setDocDate] = useState(new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }));
   const [clientName, setClientName] = useState("");
   const [persons, setPersons] = useState<Person[]>([
     { id: `person-${Date.now()}`, name: '', age: '', addr: '', aadhar: '', phone: '', email: '', photo: undefined, thumb: undefined }
   ]);
   const [basePdfFile, setBasePdfFile] = useState<File | null>(null);
+  const [basePdfPageCount, setBasePdfPageCount] = useState(0);
+
+  useEffect(() => {
+    if (basePdfFile) {
+      const getPageCount = async () => {
+        try {
+          const PDFLib = (window as any).PDFLib;
+          if (!PDFLib) return;
+          const arrayBuffer = await basePdfFile.arrayBuffer();
+          const doc = await PDFLib.PDFDocument.load(arrayBuffer);
+          setBasePdfPageCount(doc.getPageCount());
+        } catch (e) {
+          console.error("Failed to parse PDF pages", e);
+        }
+      };
+      getPageCount();
+    } else {
+      setBasePdfPageCount(0);
+    }
+  }, [basePdfFile]);
 
   const [activeCapture, setActiveCapture] = useState<{ personId: string, type: 'photo' | 'thumb' } | null>(null);
 
@@ -589,18 +611,22 @@ export function GiftDeedEditor() {
               )}
             </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div>
-              <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Subject / Client</label>
-              <input type="text" value={clientName} onChange={(e) => setClientName(e.target.value)} className="w-full p-3 border border-outline-variant/40 rounded-lg bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary/50 outline-none transition-all font-medium text-sm" placeholder="e.g. John Doe" />
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
             <div>
               <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Sr No</label>
               <input type="text" value={srNo} onChange={(e) => setSrNo(e.target.value)} className="w-full p-3 border border-outline-variant/40 rounded-lg bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary/50 outline-none transition-all font-medium text-sm" placeholder="e.g. 2024/01" />
             </div>
             <div>
-              <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">K No</label>
+              <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Register Number</label>
               <input type="text" value={kNo} onChange={(e) => setKNo(e.target.value)} className="w-full p-3 border border-outline-variant/40 rounded-lg bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary/50 outline-none transition-all font-medium text-sm" placeholder="e.g. 123" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Document Name</label>
+              <input type="text" value={docName} onChange={(e) => setDocName(e.target.value)} className="w-full p-3 border border-outline-variant/40 rounded-lg bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary/50 outline-none transition-all font-medium text-sm" placeholder="e.g. Gift Deed" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Document Purpose</label>
+              <input type="text" value={docPurpose} onChange={(e) => setDocPurpose(e.target.value)} className="w-full p-3 border border-outline-variant/40 rounded-lg bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary/50 outline-none transition-all font-medium text-sm" placeholder="e.g. Flat Purpose" />
             </div>
             <div>
               <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Document Date</label>
@@ -714,77 +740,122 @@ export function GiftDeedEditor() {
           </div>
         </div>
 
-        <article id="document-to-print" className="bg-[#ffffff] w-[210mm] min-h-[297mm] overflow-visible shadow-[0_4px_12px_rgba(0,0,0,0.2)] relative flex flex-col p-[15mm] my-[20px] box-border print:shadow-none print:w-[210mm] print:max-w-none print:p-[15mm] print:m-0" style={{ fontFamily: '"Times New Roman", serif' }}>
-          
-          <div className="text-center">
-            <h2 className="font-bold text-2xl m-0">Adv. Sameer Shrikant Vispute</h2>
-            <small>Bombay High Court Notary (Govt. of India) Reg. No. 57704 </small>
-            <br />
-            <small>Shree Bhagwati Krupa, Pendse Nagar, Lane No 2, Dombivli (E), Dist. Thane - 421201.</small>
-          </div>
+        <div id="document-to-print" className="w-full flex flex-col items-center print:block print:w-[210mm] print:m-0 print:p-0">
+          {(() => {
+            const chunks = [];
+            const intermediateLimit = persons.filter(p => p.email && p.phone).length > 3 ? 3 : 4;
 
-          <div className="text-center mt-3 mb-2 flex justify-center">
-            <h3 className="font-bold text-lg uppercase tracking-wider inline-block">
-              {clientName}
-            </h3>
-          </div>
+            if (persons.length === 3) {
+              chunks.push(persons.slice(0, 2));
+              chunks.push(persons.slice(2, 3));
+            } else if (persons.length > 0) {
+              chunks.push(persons.slice(0, 3));
+              let i = 3;
+              while (i < persons.length) {
+                let remaining = persons.length - i;
+                if (remaining <= 3) {
+                  chunks.push(persons.slice(i, i + remaining));
+                  i += remaining;
+                } else if (remaining === 4 && intermediateLimit === 4) {
+                  chunks.push(persons.slice(i, i + 3));
+                  i += 3;
+                } else {
+                  chunks.push(persons.slice(i, i + intermediateLimit));
+                  i += intermediateLimit;
+                }
+              }
+            } else {
+              chunks.push([]);
+            }
+            return chunks.map((chunk, pageIndex) => {
+              const isLastPage = pageIndex === chunks.length - 1;
 
-          <div className="flex justify-between mt-4">
-            <div>Sr No: <span className="font-bold print:font-normal">{srNo}</span></div>
-            <div>Date: <span className="font-bold print:font-normal">{docDate}</span></div>
-          </div>
-          <div>K - <span className="font-bold print:font-normal">{kNo}</span></div>
-          
-          <hr style={{ margin: "10px 0", borderTop: "1px solid black", borderBottom: 'none', borderLeft: 'none', borderRight: 'none' }} />
+              return (
+               <article 
+                  key={pageIndex} 
+                  className={`bg-[#ffffff] w-[210mm] min-h-[297mm] overflow-visible shadow-[0_4px_12px_rgba(0,0,0,0.2)] relative flex flex-col p-[15mm] box-border print:shadow-none print:w-[210mm] print:max-w-none print:p-[15mm] print:m-0 ${pageIndex > 0 ? 'mt-8 print:mt-0 html2pdf__page-break' : 'my-[20px] print:m-0'}`} 
+                  style={{ fontFamily: '"Times New Roman", serif', pageBreakAfter: isLastPage ? 'auto' : 'always' }}
+               >
+                 
+                 {pageIndex === 0 && (
+                   <>
+                     <div className="text-center">
+                       <h2 className="font-bold text-2xl m-0">Adv. Sameer Shrikant Vispute</h2>
+                       <small>Bombay High Court Notary (Govt. of India) Reg. No. 57704 </small>
+                       <br />
+                       <small>Shree Bhagwati Krupa, Pendse Nagar, Lane No 2, Dombivli (E), Dist. Thane - 421201.</small>
+                     </div>
 
-          <div className="flex-grow">
-            {persons.map((person, index) => (
-              <div key={person.id}>
-                <div className="mt-[20px]">
-                  <p style={{ lineHeight: 1.3, marginTop: '6px', marginBottom: '6px' }}>
-                    I Mr <span className="font-bold print:font-normal">{person.name}</span> aged 
-                    <span className="font-bold print:font-normal ml-1">{person.age}</span> yrs.
-                  </p>
-                  <p style={{ lineHeight: 1.3, marginTop: '6px', marginBottom: '6px' }}>
-                    Residing at <span className="font-bold print:font-normal">{person.addr}</span>
-                  </p>
-                  <p style={{ lineHeight: 1.3, marginTop: '6px', marginBottom: '6px' }}>
-                    Aadhar Card No: <span className="font-bold print:font-normal">{person.aadhar}</span>
-                  </p>
-                  <div className="flex justify-between items-center mt-4">
-                    <div className="flex flex-col items-center">
-                      <div className="w-[120px] h-[120px] border border-[#000000] relative flex items-center justify-center bg-[#f9fafb] overflow-hidden">
-                        {person.photo && <img src={getSafeImageUrl(person.photo)} crossOrigin="anonymous" className="w-full h-full object-cover" alt="Captured" />}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <div className="w-[200px] border-t border-[#000000] text-center mt-[20px] font-bold">Signature</div>
-                    </div>
-                    
-                    <div className="flex flex-col items-center">
-                      <div className="w-[120px] h-[80px] border border-[#000000] relative flex items-center justify-center bg-[#f9fafb] overflow-hidden">
-                        {person.thumb && <img src={getSafeImageUrl(person.thumb)} crossOrigin="anonymous" className="w-full h-full object-contain p-1" alt="Thumbprint" />}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <hr style={{ margin: "8px 0", borderTop: "1px solid black", borderBottom: 'none', borderLeft: 'none', borderRight: 'none' }} />
-              </div>
-            ))}
-            
-            <p style={{ marginTop: '16px' }}>
-              That we have executed the annexed Gift Deed on <br />
-              <span className="font-bold print:font-normal mt-1 block">{docDate}</span><br />
-              Pertaining to Flat Purpose.<br />
-              Signed beside our photo herein above & document contains 4 pages.
-            </p>
-            <hr style={{ margin: "8px 0", borderTop: "1px solid black", borderBottom: 'none', borderLeft: 'none', borderRight: 'none' }} />
-          </div>
+                     <div className="flex justify-between mt-4">
+                       <div>Sr No: <span className="font-bold print:font-normal">{srNo}</span></div>
+                       <div>Date: <span className="font-bold print:font-normal">{docDate}</span></div>
+                     </div>
+                     <div>Register Number - <span className="font-bold print:font-normal">{kNo}</span></div>
+                     
+                     <hr style={{ margin: "10px 0", borderTop: "1px solid black", borderBottom: 'none', borderLeft: 'none', borderRight: 'none' }} />
+                   </>
+                 )}
 
-          <div className="absolute bottom-[80px] left-[60px]"><b>NOTARY</b><br/>Govt. of India</div>
-          <div className="absolute bottom-[80px] right-[60px] text-center">BEFORE ME<br/><b>ADVOCATE & NOTARY</b></div>
-        </article>
+                 <div className="flex-grow">
+                   {chunk.map((person, index) => (
+                     <div key={person.id}>
+                       <div className="mt-[10px]">
+                         <p style={{ lineHeight: 1.3, margin: 0, marginBottom: '16px' }}>
+                           I Mr <span className="font-bold print:font-normal">{person.name}</span> aged <span className="font-bold print:font-normal ml-1">{person.age}</span> yrs.<br />
+                           Residing at <span className="font-bold print:font-normal">{person.addr}</span><br />
+                           Aadhar Card No: <span className="font-bold print:font-normal">{person.aadhar}</span>
+                           {person.phone && <><br />Phone: <span className="font-bold print:font-normal">{person.phone}</span></>}
+                           {person.email && <><br />Email: <span className="font-bold print:font-normal">{person.email}</span></>}
+                         </p>
+                         <div className="flex justify-between items-center mt-4">
+                           <div className="flex flex-col items-center">
+                             <div className="w-[120px] h-[120px] border border-[#000000] relative flex items-center justify-center bg-[#f9fafb] overflow-hidden">
+                               {person.photo && <img src={getSafeImageUrl(person.photo)} crossOrigin="anonymous" className="w-full h-full object-cover" alt="Captured" />}
+                             </div>
+                           </div>
+                           
+                           <div>
+                             <div className="w-[200px] border-t border-[#000000] text-center mt-[20px] font-bold">Signature</div>
+                           </div>
+                           
+                           <div className="flex flex-col items-center">
+                             <div className="w-[120px] h-[80px] border border-[#000000] relative flex items-center justify-center bg-[#f9fafb] overflow-hidden">
+                               {person.thumb && <img src={getSafeImageUrl(person.thumb)} crossOrigin="anonymous" className="w-full h-full object-contain p-1" alt="Thumbprint" />}
+                             </div>
+                           </div>
+                         </div>
+                       </div>
+                       <hr style={{ margin: "8px 0", borderTop: "1px solid black", borderBottom: 'none', borderLeft: 'none', borderRight: 'none' }} />
+                     </div>
+                   ))}
+                   
+                   {isLastPage && (
+                     <>
+                        <p style={{ marginTop: '16px', lineHeight: '1.5' }}>
+                          That we have executed the annexed {docName || 'Gift Deed'} on <span className="font-bold print:font-normal">{docDate}</span>.<br />
+                          Pertaining to {docPurpose || 'Flat Purpose'}.<br />
+                          Signed beside our photo herein above & document contains {basePdfPageCount + chunks.length} pages.
+                        </p>
+                       <hr style={{ margin: "8px 0", borderTop: "1px solid black", borderBottom: 'none', borderLeft: 'none', borderRight: 'none' }} />
+                     </>
+                   )}
+                 </div>
+
+                 {isLastPage && (
+                   <>
+                     <div className="absolute bottom-[80px] left-[60px]"><b>NOTARY</b><br/>Govt. of India</div>
+                     <div className="absolute bottom-[80px] right-[60px] text-center">BEFORE ME<br/><b>ADVOCATE & NOTARY</b></div>
+                   </>
+                 )}
+                 
+                 <div className="absolute bottom-[30px] left-0 right-0 text-center text-xs text-black/70">
+                   Page {pageIndex + 1} of {chunks.length}
+                 </div>
+               </article>
+             );
+            });
+          })()}
+        </div>
       </main>
     </Layout>
   );

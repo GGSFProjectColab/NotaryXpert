@@ -1,8 +1,25 @@
 import { Layout } from "../components/layout/Layout";
 import { TopBar } from "../components/layout/TopBar";
 import { User, SlidersHorizontal, CreditCard, Shield, Info } from "lucide-react";
+import { useState, useEffect } from "react";
 
 export function Settings() {
+  const [licenseNumber, setLicenseNumber] = useState("NX-2023-8941");
+  const [registerNumber, setRegisterNumber] = useState("");
+
+  useEffect(() => {
+    const savedLicense = localStorage.getItem("notaryLicenseNumber");
+    const savedRegister = localStorage.getItem("registerNumber");
+    if (savedLicense) setLicenseNumber(savedLicense);
+    if (savedRegister) setRegisterNumber(savedRegister);
+  }, []);
+
+  const handleSave = () => {
+    localStorage.setItem("notaryLicenseNumber", licenseNumber);
+    localStorage.setItem("registerNumber", registerNumber);
+    alert("Settings saved successfully!");
+  };
+
   return (
     <Layout>
       <TopBar />
@@ -88,18 +105,36 @@ export function Settings() {
                     </div>
                   </div>
 
-                  <div className="border-t border-outline-variant/15 pt-8 mt-8">
+                  <div className="border-t border-outline-variant/15 pt-8 mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="flex flex-col gap-2">
                       <label className="font-label text-sm font-medium text-on-surface-variant flex items-center gap-2">
                         Notary License Number
                         <Info size={16} className="text-tertiary cursor-help" />
                       </label>
-                      <input className="w-full md:w-1/2 bg-surface-container-highest border-transparent focus:border-primary/30 focus:bg-surface-container-lowest focus:ring-0 rounded-md font-body text-on-surface font-mono px-4 py-3 transition-all" type="text" defaultValue="NX-2023-8941" />
+                      <input 
+                        className="w-full bg-surface-container-highest border-transparent focus:border-primary/30 focus:bg-surface-container-lowest focus:ring-0 rounded-md font-body text-on-surface font-mono px-4 py-3 transition-all" 
+                        type="text" 
+                        value={licenseNumber}
+                        onChange={(e) => setLicenseNumber(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="font-label text-sm font-medium text-on-surface-variant flex items-center gap-2">
+                        Default Register Number
+                        <Info size={16} className="text-tertiary cursor-help" />
+                      </label>
+                      <input 
+                        className="w-full bg-surface-container-highest border-transparent focus:border-primary/30 focus:bg-surface-container-lowest focus:ring-0 rounded-md font-body text-on-surface font-mono px-4 py-3 transition-all" 
+                        type="text" 
+                        value={registerNumber}
+                        onChange={(e) => setRegisterNumber(e.target.value)}
+                        placeholder="e.g. 123"
+                      />
                     </div>
                   </div>
 
                   <div className="mt-8 flex justify-end">
-                    <button className="px-6 py-3 gradient-primary text-white rounded-xl font-body font-medium hover:opacity-90 transition-opacity shadow-sm">
+                    <button onClick={handleSave} className="px-6 py-3 gradient-primary text-white rounded-xl font-body font-medium hover:opacity-90 transition-opacity shadow-sm">
                       Save Changes
                     </button>
                   </div>
