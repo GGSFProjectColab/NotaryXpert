@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { LayoutDashboard, FileText, Users, Settings, CircleHelp, LogOut, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "../../lib/utils";
-import { useState, useRef } from "react";
+import { useState } from "react";
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -11,7 +11,6 @@ interface SidebarProps {
 export function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
   const location = useLocation();
   const [isHovered, setIsHovered] = useState(false);
-  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const links = [
     { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -25,17 +24,13 @@ export function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
 
   const handleMouseEnter = () => {
     if (isCollapsed) {
-      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
       setIsHovered(true);
     }
   };
 
   const handleMouseLeave = () => {
     if (isCollapsed) {
-      // Delay collapsing for a few seconds as requested
-      hoverTimeoutRef.current = setTimeout(() => {
-        setIsHovered(false);
-      }, 1500); // 1.5 seconds delay
+      setIsHovered(false);
     }
   };
 
@@ -44,7 +39,7 @@ export function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       className={cn(
-        "bg-surface-container-low text-primary flex-col h-screen py-8 border-r-0 fixed left-0 top-0 z-40 hidden md:flex transition-all duration-300 ease-in-out shadow-xl",
+        "bg-surface-container-low text-primary flex-col h-screen py-8 border-r-0 fixed left-0 top-0 z-40 hidden md:flex transition-all duration-200 ease-in-out shadow-xl",
         isExpanded ? "w-64" : "w-20"
       )}
     >
