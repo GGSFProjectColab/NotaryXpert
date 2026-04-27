@@ -116,8 +116,9 @@ export function Dashboard() {
             <div className="flex gap-4">
               <Link to="/documents/new" className="gradient-primary text-on-primary rounded-xl py-3 px-8 font-body font-bold hover:opacity-90 transition-opacity flex items-center gap-2 shadow-sm text-sm uppercase tracking-wider">
                 <FileText size={18} />
-                New Instrument
+                +New Document
               </Link>
+
             </div>
           </div>
 

@@ -118,8 +118,9 @@ export function Documents() {
             </div>
             <Link to="/documents/new" className="flex items-center gap-2 gradient-primary text-on-primary px-6 py-3 rounded-xl font-medium shadow-[0_4px_20px_-4px_rgba(0,99,156,0.3)] hover:opacity-90 transition-opacity whitespace-nowrap">
               <Plus size={18} />
-              New Instrument
+              +New Document
             </Link>
+
           </div>
 
           {/* Filter & Search Bar Area */}
