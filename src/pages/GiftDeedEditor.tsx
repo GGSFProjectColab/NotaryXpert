@@ -65,6 +65,24 @@ function buildPreviewChunks<T extends { email?: string; phone?: string }>(person
 
 const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
 const AADHAR_REGEX = /^\d{4}\s\d{4}\s\d{4}$/;
+const DOC_NAME_OPTIONS = [
+  "Gift Deed",
+  "Agreement",
+  "Token Agreement",
+  "Affidavit",
+  "Indemnity Bond",
+  "Undertaking",
+  "Declaration",
+  "Memorandum of Understanding",
+  "Affidavit in Support",
+  "Promissory Note",
+  "Leave and License Agreement",
+  "Lease Agreement",
+  "Friendly Loan Agreement",
+  "Mortgage Deed",
+  "Power of Attorney",
+] as const;
+const OTHER_DOC_NAME_OPTION = "__other__";
 
 function normalizePanInput(value: string) {
   return value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10);
@@ -185,8 +203,8 @@ const PreviewPage = memo(function PreviewPage({
           {isLastPage && (
             <>
               <p style={{ marginTop: "16px", lineHeight: "1.5" }}>
-                That I/we have executed the annexed {docName || "Gift Deed"} dated <span className="font-bold print:font-normal">{docDate || "26th April 2026"}</span>, pertaining to the {docPurpose || "___"} purposes.<br />
-                I/we state that I/we have signed and given left hand digital thumb in the said document beside our respective photographs appearing here in above, and that the said {docName || "Gift Deed"} consists of {totalDocumentPages} pages.
+                That I/we have executed the annexed <span className="font-bold print:font-normal">{docName || "Gift Deed"}</span> dated <span className="font-bold print:font-normal">{docDate || "26th April 2026"}</span>, pertaining to the {docPurpose || "___"} purposes.<br />
+                I/we state that I/we have signed and given left hand digital thumb in the said document beside our respective photographs appearing here in above, and that the said <span className="font-bold print:font-normal">{docName || "Gift Deed"}</span> consists of {totalDocumentPages} pages.
               </p>
               <hr style={{ margin: "8px 0", borderTop: "1px solid black", borderBottom: "none", borderLeft: "none", borderRight: "none" }} />
             </>
@@ -281,6 +299,7 @@ export function GiftDeedEditor() {
   const [kNo, setKNo] = useState("");
   const [pageNo, setPageNo] = useState("");
   const [docName, setDocName] = useState("Gift Deed");
+  const [docNameSelection, setDocNameSelection] = useState<string>("Gift Deed");
   const [docPurpose, setDocPurpose] = useState("Flat Purpose");
   const [docDate, setDocDate] = useState(new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }));
   const [clientName, setClientName] = useState("");
@@ -403,6 +422,11 @@ export function GiftDeedEditor() {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [isUploadingPdf, setIsUploadingPdf] = useState(false);
   const [isSendingMail, setIsSendingMail] = useState(false);
+
+  const syncDocNameState = (value: string) => {
+    setDocName(value);
+    setDocNameSelection(DOC_NAME_OPTIONS.includes(value as typeof DOC_NAME_OPTIONS[number]) ? value : OTHER_DOC_NAME_OPTION);
+  };
 
   // Auto-fetch the next logical Sequence strictly when the editor loads
   useEffect(() => {
@@ -581,6 +605,7 @@ export function GiftDeedEditor() {
           if (data.kNo) setKNo(data.kNo);
           if (data.pageNo) setPageNo(data.pageNo);
           if (data.docDate) setDocDate(data.docDate);
+          if (data.docName) syncDocNameState(data.docName);
           if (data.persons) setPersons(data.persons);
           if (data.pdfUrl) setPdfUrl(data.pdfUrl);
         } else {
@@ -993,7 +1018,35 @@ Contact Details : Mob. 8286000888 / 9933806888 | Email - advsameervispute@gmail.
               </div>
               <div>
                 <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Document Name</label>
-                <input type="text" value={docName} onChange={(e) => setDocName(e.target.value)} className="w-full p-2.5 border border-outline-variant/40 rounded-lg bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary/50 outline-none transition-all font-medium text-sm" placeholder="e.g. Gift Deed" />
+                <select
+                  value={docNameSelection}
+                  onChange={(e) => {
+                    const selectedValue = e.target.value;
+                    setDocNameSelection(selectedValue);
+                    if (selectedValue === OTHER_DOC_NAME_OPTION) {
+                      setDocName("");
+                      return;
+                    }
+                    setDocName(selectedValue);
+                  }}
+                  className="w-full p-2.5 border border-outline-variant/40 rounded-lg bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary/50 outline-none transition-all font-medium text-sm"
+                >
+                  {DOC_NAME_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                  <option value={OTHER_DOC_NAME_OPTION}>Other (Editable)</option>
+                </select>
+                {docNameSelection === OTHER_DOC_NAME_OPTION && (
+                  <input
+                    type="text"
+                    value={docName}
+                    onChange={(e) => setDocName(e.target.value)}
+                    className="mt-2 w-full p-2.5 border border-outline-variant/40 rounded-lg bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary/50 outline-none transition-all font-medium text-sm"
+                    placeholder="Enter custom document name"
+                  />
+                )}
               </div>
               <div>
                 <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Document Purpose</label>

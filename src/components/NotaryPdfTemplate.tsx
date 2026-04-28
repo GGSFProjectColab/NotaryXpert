@@ -323,8 +323,8 @@ const NotaryPdfTemplate: React.FC<NotaryPdfTemplateProps> = ({
               {isLastPage && (
                 <View>
                   <Text style={styles.footerText}>
-                    That I/we have executed the annexed {docName || 'Gift Deed'} dated <Text style={styles.bold}>{docDate || '26th April 2026'}</Text>, pertaining to the {docPurpose || '___'} purposes.{'\n'}
-                    I/we state that I/we have signed and given left hand digital thumb in the said document beside our respective photographs appearing hereinabove, and that the said {docName || 'Gift Deed'} consists of {basePdfPageCount + chunks.length} pages.
+                    That I/we have executed the annexed <Text style={styles.bold}>{docName || 'Gift Deed'}</Text> dated <Text style={styles.bold}>{docDate || '26th April 2026'}</Text>, pertaining to the {docPurpose || '___'} purposes.{'\n'}
+                    I/we state that I/we have signed and given left hand digital thumb in the said document beside our respective photographs appearing hereinabove, and that the said <Text style={styles.bold}>{docName || 'Gift Deed'}</Text> consists of {basePdfPageCount + chunks.length} pages.
                   </Text>
                   <View style={styles.divider} />
                 </View>
