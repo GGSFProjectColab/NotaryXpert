@@ -967,17 +967,14 @@ Contact Details : Mob. 8286000888 / 9933806888 | Email - advsameervispute@gmail.
               </div>
             </div>
 
-            <div className="flex flex-col 2xl:flex-row 2xl:justify-between 2xl:items-center gap-3 mb-5 pt-5 border-t border-outline-variant/15">
+            <div className="pt-5 border-t border-outline-variant/15">
               <div>
                 <h3 className="font-headline text-xl font-bold text-on-surface">Parties Involved</h3>
                 <p className="text-xs text-on-surface-variant mt-1">Either Aadhar Card or PAN Card is required for each party.</p>
               </div>
-              <button onClick={addPerson} className="flex w-full 2xl:w-auto items-center justify-center gap-2 bg-secondary-container text-on-secondary-container px-4 py-2.5 rounded-xl font-body font-medium hover:opacity-90 active:scale-95 transition-all text-sm shadow-sm">
-                <Plus size={16} /> Add Person
-              </button>
             </div>
 
-            <div className="space-y-3">
+            <div className="mt-5 max-h-[min(46vh,34rem)] space-y-3 overflow-y-auto pr-2 pb-1 app-scroll">
               {persons.map((person, index) => (
                 <div key={person.id} className="p-4 border border-outline-variant/30 rounded-xl bg-surface-container-lowest/50 relative shadow-sm">
                   <div className="absolute -left-2 -top-2 w-6 h-6 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-xs shadow-md">{index + 1}</div>
@@ -1078,6 +1075,10 @@ Contact Details : Mob. 8286000888 / 9933806888 | Email - advsameervispute@gmail.
                 </div>
               ))}
             </div>
+
+            <button onClick={addPerson} className="mt-3 flex w-full items-center justify-center gap-2 bg-secondary-container text-on-secondary-container px-4 py-2.5 rounded-xl font-body font-medium hover:opacity-90 active:scale-95 transition-all text-sm shadow-sm">
+              <Plus size={16} /> Add Person
+            </button>
 
             <div className="mt-8 border-t border-outline-variant/15 pt-6">
               <div className="mb-4">
