@@ -176,13 +176,13 @@ const PreviewPage = memo(function PreviewPage({
                     Residing at <span className="font-bold print:font-normal">{person.addr}</span><br />
                     {person.aadhar && <>Aadhar Card No: <span className="font-bold print:font-normal">{person.aadhar}</span></>}
                     {person.aadhar && person.pan && <span className="mx-2">|</span>}
-                    {person.pan && <>PAN Card No: <span className="font-bold print:font-normal">{person.pan}</span></>}
+                    {person.pan && <>PAN Card No: <span className="font-bold print:font-normal">{person.pan.toUpperCase()}</span></>}
                     {person.phone && <><br />Phone: <span className="font-bold print:font-normal">{person.phone}</span></>}
                     {person.email && <><br />Email: <span className="font-bold print:font-normal">{person.email}</span></>}
                   </p>
 
                   <div className="mt-4 flex flex-col items-start">
-                    <div className="w-[120px] h-[80px] border relative flex items-center justify-center overflow-hidden" style={{ borderColor: "#000000", backgroundColor: "#f9fafb" }}>
+                    <div className="w-[120px] h-[120px] border relative flex items-center justify-center overflow-hidden" style={{ borderColor: "#000000", backgroundColor: "#f9fafb" }}>
                       {person.safeThumb && <img src={person.safeThumb} crossOrigin="anonymous" className="w-full h-full object-contain p-1" alt="Thumbprint" />}
                     </div>
                   </div>
@@ -301,6 +301,7 @@ export function GiftDeedEditor() {
   const [docName, setDocName] = useState("Gift Deed");
   const [docNameSelection, setDocNameSelection] = useState<string>("Gift Deed");
   const [docPurpose, setDocPurpose] = useState("Flat Purpose");
+  const [manualTotalDocumentPages, setManualTotalDocumentPages] = useState<string>("");
   const [docDate, setDocDate] = useState(new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }));
   const [clientName, setClientName] = useState("");
   const [persons, setPersons] = useState<Person[]>([
@@ -587,8 +588,15 @@ export function GiftDeedEditor() {
     [previewPersons],
   );
   const previewChunks = useMemo(() => buildPreviewChunks(preparedPreviewPersons), [preparedPreviewPersons]);
-  const totalPreviewPages = previewChunks.length;
-  const previewDocumentPageCount = previewBasePdfPageCount + totalPreviewPages;
+  const notaryGeneratedPageCount = previewChunks.length;
+  const previewManualTotalDocumentPages = useDeferredValue(manualTotalDocumentPages);
+
+  const finalDocumentPageCount = useMemo(() => {
+    if (previewManualTotalDocumentPages && !isNaN(parseInt(previewManualTotalDocumentPages))) {
+      return parseInt(previewManualTotalDocumentPages);
+    }
+    return previewBasePdfPageCount + notaryGeneratedPageCount;
+  }, [previewManualTotalDocumentPages, previewBasePdfPageCount, notaryGeneratedPageCount]);
 
   const handleAutoFetch = async (queryParam: string) => {
     setFetchQuery(queryParam);
@@ -606,6 +614,7 @@ export function GiftDeedEditor() {
           if (data.docDate) setDocDate(data.docDate);
           if (data.docName) syncDocNameState(data.docName);
           if (data.persons) setPersons(data.persons);
+          if (data.manualTotalDocumentPages) setManualTotalDocumentPages(data.manualTotalDocumentPages);
           if (data.pdfUrl) setPdfUrl(data.pdfUrl);
         } else {
           console.warn("No document found with that ID.");
@@ -688,7 +697,8 @@ export function GiftDeedEditor() {
         clientName: clientName || "",
         persons: personsToSave,
         pdfUrl: overridePdfUrl || pdfUrl || null,
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        manualTotalDocumentPages: manualTotalDocumentPages || null,
       };
 
       console.log('Sending final data package to Firestore DB...', docData);
@@ -763,7 +773,7 @@ export function GiftDeedEditor() {
         docDate={docDate}
         docName={docName}
         docPurpose={docPurpose}
-        basePdfPageCount={basePdfPageCount}
+        finalDocumentPageCount={finalDocumentPageCount} // Pass the new prop
       />
     ).toBlob();
 
@@ -1063,6 +1073,11 @@ Contact Details : Mob. 8286000888 / 9933806888 | Email - advsameervispute@gmail.
                 <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Document Date</label>
                 <input type="text" value={docDate} onChange={(e) => setDocDate(e.target.value)} className="w-full p-2.5 border border-outline-variant/40 rounded-lg bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary/50 outline-none transition-all font-medium text-sm" placeholder="DD MMMM YYYY" />
               </div>
+              <div>
+                <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Total Document Pages (Override)</label>
+                <input type="number" value={manualTotalDocumentPages} onChange={(e) => setManualTotalDocumentPages(e.target.value)} className="w-full p-2.5 border border-outline-variant/40 rounded-lg bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary/50 outline-none transition-all font-medium text-sm" placeholder="e.g. 5" />
+                <p className="text-xs text-on-surface-variant mt-1">Leave blank to auto-calculate ({previewBasePdfPageCount} + {notaryGeneratedPageCount} = {finalDocumentPageCount} pages)</p>
+              </div>
             </div>
 
             <div className="pt-5 border-t border-outline-variant/15">
@@ -1281,9 +1296,9 @@ Contact Details : Mob. 8286000888 / 9933806888 | Email - advsameervispute@gmail.
                 key={pageIndex}
                 chunk={chunk}
                 pageIndex={pageIndex}
-                totalPages={totalPreviewPages}
-                isLastPage={pageIndex === totalPreviewPages - 1}
-                totalDocumentPages={previewDocumentPageCount}
+                totalPages={notaryGeneratedPageCount}
+                isLastPage={pageIndex === notaryGeneratedPageCount - 1}
+                totalDocumentPages={finalDocumentPageCount}
                 srNo={previewSrNo}
                 docDate={previewDocDate}
                 kNo={previewKNo}

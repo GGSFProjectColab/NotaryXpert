@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
   },
   thumbBox: {
     width: 100,
-    height: 60,
+    height: 100,
     borderWidth: 1,
     borderColor: '#000000',
     backgroundColor: '#f9fafb',
@@ -195,7 +195,7 @@ interface NotaryPdfTemplateProps {
   docDate: string;
   docName: string;
   docPurpose: string;
-  basePdfPageCount: number;
+  finalDocumentPageCount: number; // Renamed and now represents the final total pages
 }
 
 const NotaryPdfTemplate: React.FC<NotaryPdfTemplateProps> = ({
@@ -206,7 +206,7 @@ const NotaryPdfTemplate: React.FC<NotaryPdfTemplateProps> = ({
   docDate,
   docName,
   docPurpose,
-  basePdfPageCount
+  finalDocumentPageCount // Use the new prop
 }) => {
   // Compute pagination chunks
   const chunks: Person[][] = [];
@@ -299,7 +299,7 @@ const NotaryPdfTemplate: React.FC<NotaryPdfTemplateProps> = ({
                         Residing at <Text style={styles.bold}>{person.addr}</Text>{'\n'}
                         {person.aadhar && <Text>Aadhar Card No: <Text style={styles.bold}>{person.aadhar}</Text></Text>}
                         {person.aadhar && person.pan && <Text> | </Text>}
-                        {person.pan && <Text>PAN Card No: <Text style={styles.bold}>{person.pan}</Text></Text>}
+                        {person.pan && <Text>PAN Card No: <Text style={styles.bold}>{person.pan.toUpperCase()}</Text></Text>}
                         {person.phone && <Text>{'\n'}Phone: <Text style={styles.bold}>{person.phone}</Text></Text>}
                         {person.email && <Text>{'\n'}Email: <Text style={styles.bold}>{person.email}</Text></Text>}
                       </Text>
@@ -324,7 +324,7 @@ const NotaryPdfTemplate: React.FC<NotaryPdfTemplateProps> = ({
                 <View>
                   <Text style={styles.footerText}>
                     That I/we have executed the annexed <Text style={styles.bold}>{docName || 'Gift Deed'}</Text> dated <Text style={styles.bold}>{docDate || '26th April 2026'}</Text>, pertaining to the {docPurpose || '___'} purposes.{'\n'}
-                    I/we state that I/we have signed and given left hand digital thumb in the said document beside our respective photographs appearing hereinabove, and that the said <Text style={styles.bold}>{docName || 'Gift Deed'}</Text> consists of {basePdfPageCount + chunks.length} pages.
+                    I/we state that I/we have signed and given left hand digital thumb in the said document beside our respective photographs appearing hereinabove, and that the said <Text style={styles.bold}>{docName || 'Gift Deed'}</Text> consists of {finalDocumentPageCount} pages.
                   </Text>
                   <View style={styles.divider} />
                 </View>
