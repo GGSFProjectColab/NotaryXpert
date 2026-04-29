@@ -4,6 +4,8 @@ import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "./firebaseAuth";
 import { Loader2 } from "lucide-react";
 import { BrandLockup } from "./components/BrandLockup";
+import { AdminPanel } from './pages/AdminPanel'; // Adjust path if necessary
+
 
 const Dashboard = lazy(() => import("./pages/Dashboard").then((module) => ({ default: module.Dashboard })));
 const Documents = lazy(() => import("./pages/Documents").then((module) => ({ default: module.Documents })));
@@ -57,6 +59,8 @@ export default function App() {
           <Route path="/documents/new" element={user ? <GiftDeedEditor /> : <Navigate to="/login" replace />} />
           <Route path="/clients" element={user ? <Clients /> : <Navigate to="/login" replace />} />
           <Route path="/settings" element={user ? <Settings /> : <Navigate to="/login" replace />} />
+
+          <Route path="/admin/secure/admin" element={user ? <AdminPanel /> : <Navigate to="/login" replace />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
