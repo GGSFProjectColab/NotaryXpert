@@ -106,9 +106,9 @@ const DOC_NAME_OPTIONS = [
   "Will",
 ] as const;
 const ROLE_OPTIONS = [
-  "Donor", "Donee", "Purchaser", "Seller", "Mortgagor", "Mortgagee", 
-  "Deponent", "Affiant", "Executor/Principal", "Constituted Attorney Holder", 
-  "Leasor", "Leasee", "Executor", "Indemnifier", "Declarant", 
+  "Donor", "Donee", "Purchaser", "Seller", "Mortgagor", "Mortgagee",
+  "Deponent", "Affiant", "Executor/Principal", "Constituted Attorney Holder",
+  "Leasor", "Leasee", "Executor", "Indemnifier", "Declarant",
   "Confirming Party", "Licensor", "Licensee"
 ];
 const OTHER_DOC_NAME_OPTION = "__other__";
@@ -954,7 +954,7 @@ export function GiftDeedEditor() {
         const qs = await getDocs(q);
         const isDuplicate = qs.docs.some(docSnap => docSnap.id !== fetchQuery.trim() && docSnap.data().pageNo === pageNo);
         if (isDuplicate) {
-          throw new Error("This Register No and Reg.Page No combination already exists. Please use a unique combination.");
+          throw new Error("Register No. & Reg.Page Number. already exists, update Reg.Page Number.");
         }
       }
 
@@ -995,13 +995,13 @@ export function GiftDeedEditor() {
         // Update global sequential counters EXCEPT pageNo, which is manual
         const nextSrNo = (!isNaN(parseInt(srNo)) ? (parseInt(srNo) + 1).toString() : srNo);
         // We do not auto-increment pageNo here anymore
-        const nextPageNo = pageNo; 
-        
+        const nextPageNo = pageNo;
+
         // Also update settings to reflect latest serial
-        await setDoc(doc(db, "settings", "config"), { 
-          currentSrNo: nextSrNo, 
-          currentPageNo: nextPageNo, 
-          registerNumber: kNo 
+        await setDoc(doc(db, "settings", "config"), {
+          currentSrNo: nextSrNo,
+          currentPageNo: nextPageNo,
+          registerNumber: kNo
         }, { merge: true }).catch(e => console.error("Failed to update global counters", e));
         console.log('Firebase Save transaction completed securely!');
         return docRef.id;
@@ -1021,8 +1021,20 @@ export function GiftDeedEditor() {
       alert("Please enter the Reg.Page No manually before skipping.");
       return;
     }
+
+    // Duplicate check
+    if (kNo && pageNo) {
+      const q = query(collection(db, "documents"), where("kNo", "==", kNo));
+      const qs = await getDocs(q);
+      const isDuplicate = qs.docs.some(docSnap => docSnap.id !== fetchQuery.trim() && docSnap.data().pageNo === pageNo);
+      if (isDuplicate) {
+        alert("Register No. & Reg.Page Number. already exists, update Reg.Page Number.");
+        return;
+      }
+    }
+
     if (!window.confirm(`Are you sure you want to mark Serial No ${srNo} as an Offline Notary? This will skip to the next number.`)) return;
-    
+
     setIsSaving(true);
     try {
       const docData = {
@@ -1041,7 +1053,7 @@ export function GiftDeedEditor() {
       };
 
       await addDoc(collection(db, "documents"), docData);
-      
+
       const nextSrNo = (!isNaN(parseInt(srNo)) ? (parseInt(srNo) + 1).toString() : srNo);
       const nextPageNo = pageNo; // Manual
 
@@ -1052,7 +1064,7 @@ export function GiftDeedEditor() {
       }, { merge: true });
 
       alert(`Offline Notary recorded for Serial No ${srNo}!\nNext Serial No will be ${nextSrNo}.`);
-      
+
       // Reset form variables to prep for the next entry
       setFetchQuery("");
       setSrNo(nextSrNo);
@@ -1232,6 +1244,17 @@ export function GiftDeedEditor() {
   const handlePrintAndSave = async () => {
     if (!validatePersons()) return;
 
+    // Async Duplicate Check before proceeding to PDF generation
+    if (kNo && pageNo) {
+      const q = query(collection(db, "documents"), where("kNo", "==", kNo));
+      const qs = await getDocs(q);
+      const isDuplicate = qs.docs.some(docSnap => docSnap.id !== fetchQuery.trim() && docSnap.data().pageNo === pageNo);
+      if (isDuplicate) {
+        alert("Register No. & Reg.Page Number. already exists, update Reg.Page Number.");
+        return;
+      }
+    }
+
     setIsUploadingPdf(true); // Show spinner on button
 
     let mergedBlob: Blob;
@@ -1263,16 +1286,16 @@ export function GiftDeedEditor() {
               formData.append('folder', 'notery_pdfs');
 
               const cloudinaryResponse = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/upload`, {
-                  method: 'POST',
-                  body: formData,
+                method: 'POST',
+                body: formData,
               });
 
               if (!cloudinaryResponse.ok) {
-                  throw new Error("Cloudinary upload failed");
+                throw new Error("Cloudinary upload failed");
               }
               const cloudinaryData = await cloudinaryResponse.json();
               resolve(cloudinaryData.secure_url);
-            } catch(e) {
+            } catch (e) {
               reject(e);
             }
           };
@@ -1301,7 +1324,7 @@ export function GiftDeedEditor() {
             try {
               iframe.contentWindow?.focus();
               iframe.contentWindow?.print();
-            } catch(e) {
+            } catch (e) {
               window.open(blobUrl, '_blank');
             }
           }, 100);
@@ -1417,7 +1440,7 @@ Contact Details : Mob. 8286000888 / 9933806888 | Email - advsameervispute@gmail.
       <main className="flex-1 overflow-y-auto w-full p-0 bg-surface print:bg-white print:p-0">
         {/* Mobile Toggle Button */}
         <div className="xl:hidden flex justify-end p-4 no-print sticky top-0 z-30 bg-surface/80 backdrop-blur-md border-b border-outline-variant/10">
-          <button 
+          <button
             onClick={() => setShowPreviewMobile(!showPreviewMobile)}
             className="flex items-center gap-2 bg-primary text-on-primary px-5 py-2.5 rounded-xl font-body font-bold shadow-lg hover:opacity-90 active:scale-95 transition-all text-sm uppercase tracking-wider"
           >
@@ -1658,11 +1681,10 @@ Contact Details : Mob. 8286000888 / 9933806888 | Email - advsameervispute@gmail.
                         type="text"
                         value={person.aadhar}
                         onChange={(e) => updatePerson(person.id, 'aadhar', normalizeAadharInput(e.target.value))}
-                        className={`w-full p-2.5 border rounded-lg bg-surface outline-none transition-all font-medium text-sm ${
-                          getAadharValidationMessage(person.aadhar)
+                        className={`w-full p-2.5 border rounded-lg bg-surface outline-none transition-all font-medium text-sm ${getAadharValidationMessage(person.aadhar)
                             ? 'border-error text-error focus:ring-2 focus:ring-error/20 focus:border-error'
                             : 'border-outline-variant/40 focus:ring-2 focus:ring-primary/20 focus:border-primary/50'
-                        }`}
+                          }`}
                         placeholder="1234 5678 9012"
                         maxLength={14}
                       />
@@ -1678,11 +1700,10 @@ Contact Details : Mob. 8286000888 / 9933806888 | Email - advsameervispute@gmail.
                         type="text"
                         value={person.pan || ''}
                         onChange={(e) => updatePerson(person.id, 'pan', normalizePanInput(e.target.value))}
-                        className={`w-full p-2.5 border rounded-lg bg-surface outline-none transition-all font-medium text-sm uppercase ${
-                          getPanValidationMessage(person.pan)
+                        className={`w-full p-2.5 border rounded-lg bg-surface outline-none transition-all font-medium text-sm uppercase ${getPanValidationMessage(person.pan)
                             ? 'border-error text-error focus:ring-2 focus:ring-error/20 focus:border-error'
                             : 'border-outline-variant/40 focus:ring-2 focus:ring-primary/20 focus:border-primary/50'
-                        }`}
+                          }`}
                         placeholder="ABCDE1234F"
                         maxLength={10}
                       />
@@ -1694,28 +1715,28 @@ Contact Details : Mob. 8286000888 / 9933806888 | Email - advsameervispute@gmail.
                     </div>
                     <div className="md:col-span-2 2xl:col-span-12">
                       <label className="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Residential Address</label>
-                      <input 
-                        type="text" 
-                        value={person.addr} 
+                      <input
+                        type="text"
+                        value={person.addr}
                         onChange={(e) => {
                           const formattedAddr = e.target.value.replace(/,(?=[^\s])/g, ', ');
                           updatePerson(person.id, 'addr', formattedAddr);
-                        }} 
-                        className="w-full p-2.5 border border-outline-variant/40 rounded-lg bg-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-medium text-sm" 
-                        placeholder="Complete address..." 
+                        }}
+                        className="w-full p-2.5 border border-outline-variant/40 rounded-lg bg-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-medium text-sm"
+                        placeholder="Complete address..."
                       />
                     </div>
                     <div className="2xl:col-span-6">
                       <label className="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Phone (Optional)</label>
-                      <input 
-                        type="text" 
-                        value={person.phone || ''} 
+                      <input
+                        type="text"
+                        value={person.phone || ''}
                         onChange={(e) => {
                           const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 10);
                           updatePerson(person.id, 'phone', digitsOnly);
-                        }} 
-                        className="w-full p-2.5 border border-outline-variant/40 rounded-lg bg-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-medium text-sm" 
-                        placeholder="XXXXXXXXXX" 
+                        }}
+                        className="w-full p-2.5 border border-outline-variant/40 rounded-lg bg-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-medium text-sm"
+                        placeholder="XXXXXXXXXX"
                       />
                     </div>
                     <div className="2xl:col-span-6">
@@ -1780,11 +1801,10 @@ Contact Details : Mob. 8286000888 / 9933806888 | Email - advsameervispute@gmail.
                 <button
                   onClick={handlePrintAndSave}
                   disabled={isUploadingPdf}
-                  className={`w-full sm:w-auto justify-center flex items-center gap-2 rounded-xl border px-4 py-2.5 font-body text-xs font-bold uppercase tracking-[0.16em] shadow-[0_12px_28px_-20px_rgba(10,10,10,0.55)] transition-all whitespace-nowrap ${
-                    isUploadingPdf
+                  className={`w-full sm:w-auto justify-center flex items-center gap-2 rounded-xl border px-4 py-2.5 font-body text-xs font-bold uppercase tracking-[0.16em] shadow-[0_12px_28px_-20px_rgba(10,10,10,0.55)] transition-all whitespace-nowrap ${isUploadingPdf
                       ? 'border-outline-variant/20 bg-surface-variant text-on-surface-variant opacity-70 cursor-not-allowed'
                       : 'border-transparent bg-primary text-on-primary hover:opacity-90 active:scale-[0.98]'
-                  }`}
+                    }`}
                 >
                   {isUploadingPdf ? <Loader2 size={16} className="animate-spin" /> : <Printer size={16} />}
                   {isUploadingPdf ? "Processing..." : "Print & Save"}
@@ -1793,11 +1813,10 @@ Contact Details : Mob. 8286000888 / 9933806888 | Email - advsameervispute@gmail.
                 <button
                   onClick={handleSkipNotary}
                   disabled={isSaving}
-                  className={`w-full sm:w-auto justify-center flex items-center gap-2 rounded-xl border px-4 py-2.5 font-body text-xs font-bold uppercase tracking-[0.16em] shadow-sm transition-all whitespace-nowrap ${
-                    isSaving
+                  className={`w-full sm:w-auto justify-center flex items-center gap-2 rounded-xl border px-4 py-2.5 font-body text-xs font-bold uppercase tracking-[0.16em] shadow-sm transition-all whitespace-nowrap ${isSaving
                       ? 'border-outline-variant/20 bg-surface-variant text-on-surface-variant opacity-70 cursor-not-allowed'
                       : 'border-outline-variant/30 bg-surface text-on-surface hover:bg-surface-container active:scale-[0.98]'
-                  }`}
+                    }`}
                 >
                   {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                   {isSaving ? "Skipping..." : "Skip (Offline Notary)"}
@@ -1815,11 +1834,10 @@ Contact Details : Mob. 8286000888 / 9933806888 | Email - advsameervispute@gmail.
                     <button
                       onClick={handleSendMail}
                       disabled={isSendingMail}
-                      className={`w-full sm:w-auto justify-center flex items-center gap-2 rounded-xl border border-secondary-container/50 px-4 py-2.5 font-body text-xs font-bold uppercase tracking-[0.16em] shadow-sm transition-all whitespace-nowrap ${
-                        isSendingMail
+                      className={`w-full sm:w-auto justify-center flex items-center gap-2 rounded-xl border border-secondary-container/50 px-4 py-2.5 font-body text-xs font-bold uppercase tracking-[0.16em] shadow-sm transition-all whitespace-nowrap ${isSendingMail
                           ? 'bg-surface-variant text-on-surface-variant opacity-70 cursor-not-allowed'
                           : 'bg-secondary-container text-on-secondary-container hover:opacity-90 active:scale-[0.98]'
-                      }`}
+                        }`}
                     >
                       {isSendingMail ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
                       {isSendingMail ? "Saving..." : "Send via Gmail"}

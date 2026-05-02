@@ -211,7 +211,7 @@ const NotaryPdfTemplate: React.FC<NotaryPdfTemplateProps> = ({
   // Compute pagination chunks
   const chunks: Person[][] = [];
   const intermediateLimit = persons.filter(p => p.email && p.phone).length > 3 ? 3 : 4;
-  
+
   if (persons.length > 0) {
     let i = 0;
     while (i < persons.length) {
@@ -237,19 +237,19 @@ const NotaryPdfTemplate: React.FC<NotaryPdfTemplateProps> = ({
   const getSafeImageUrl = (url?: string | null) => {
     if (!url) return undefined;
     if (url.startsWith('data:image')) return url;
-    
+
     // Auto-compress cloudinary URLs
     if (url.includes('res.cloudinary.com')) {
       const parts = url.split('/upload/');
       if (parts.length === 2 && !url.includes('q_auto')) {
         // Remove any existing transformations by finding the first slash after upload
-        const pathPart = parts[1].includes('/') && parts[1].split('/')[0].includes(',') 
-          ? parts[1].substring(parts[1].indexOf('/') + 1) 
+        const pathPart = parts[1].includes('/') && parts[1].split('/')[0].includes(',')
+          ? parts[1].substring(parts[1].indexOf('/') + 1)
           : parts[1];
         url = `${parts[0]}/upload/w_200,q_10,f_jpg/${pathPart}`;
       }
     }
-    
+
     return `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
   };
 
@@ -261,9 +261,9 @@ const NotaryPdfTemplate: React.FC<NotaryPdfTemplateProps> = ({
 
         return (
           <Page key={pageIndex} size="A4" style={styles.page}>
-            <Image 
+            <Image
               src={logo3Src}
-              style={{ position: 'absolute', top: '27.5%', left: '20%', width: '60%', height: '45%', opacity: 0.05, objectFit: 'contain' }} 
+              style={{ position: 'absolute', top: '27.5%', left: '20%', width: '60%', height: '45%', opacity: 0.05, objectFit: 'contain' }}
               quality={0.3}
             />
             {isFirstPage && (
