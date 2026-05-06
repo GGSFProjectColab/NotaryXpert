@@ -5,6 +5,7 @@ import {
   parsePidCaptureResponse,
 } from "./pid";
 import { getLegacyPreviewCandidates, getRdServiceCandidates } from "./config";
+import { isConnectorAvailable, captureViaConnector } from "./connectorApi";
 import type { FingerprintConfig, FingerprintDeviceInfo, ParsedPidCaptureResponse } from "./types";
 
 export type FingerprintCaptureStage =
@@ -77,11 +78,14 @@ function buildDeviceErrorMessage(error: unknown, attemptedUrl: string, config: F
     attemptedUrl.startsWith("http://");
 
   if (looksLikeHttpsMixedContent) {
-    return `${fallback} This app is running on HTTPS, so enable the official Mantra browser bridge/extension or switch the RD URL to secure localhost on this PC.`;
+    return `${fallback} This app is running on HTTPS, but the scanner is responding on HTTP. Please enable the 'Mantra Browser Bridge' extension or configure the RD Service to use HTTPS.`;
   }
 
-  if (message.toLowerCase().includes("failed to fetch") && config.requireBrowserBridge) {
-    return `${fallback} If the device is installed, confirm the Mantra RD background service is running and the browser bridge/extension is enabled.`;
+  if (message.toLowerCase().includes("failed to fetch") || message.toLowerCase().includes("load failed")) {
+    return `Mantra RD Service not found. Please ensure that:
+1. The Mantra MFS100/MFS110 device is plugged in.
+2. The 'Mantra RD Service' is installed and running on your PC.
+3. You have granted permission for the browser to access local services.`;
   }
 
   return `${fallback} ${message}`;
@@ -182,6 +186,16 @@ async function tryDeviceInfo(url: string, config: FingerprintConfig) {
       return await response.text();
     } catch (error) {
       lastError = error;
+
+      // If it's a network error (Connection Refused, etc.), don't bother trying other methods on this same port.
+      const isNetworkError =
+        error instanceof TypeError &&
+        (error.message.toLowerCase().includes("failed to fetch") ||
+          error.message.toLowerCase().includes("load failed"));
+
+      if (isNetworkError) {
+        break;
+      }
     }
   }
 
