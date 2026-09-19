@@ -271,8 +271,8 @@ const NotaryPdfTemplate: React.FC<NotaryPdfTemplateProps> = ({
                 <View style={styles.headerRow}>
                   <Image src={logo1Src} style={styles.logo} quality={0.3} />
                   <View style={styles.headerCenter}>
-                    <Text style={styles.headerName}>Mr. Sameer Shrikant Vispute</Text>
-                    <Text style={styles.headerCredentials}>BLS., LLB., DIPL</Text>
+                    <Text style={styles.headerName}>Mr. Sameer Shrikent Vispute <Text style={{ fontSize: 10, marginLeft: 5 }}>BLS., LLB., DIPL</Text></Text>
+
                     <Text style={{ fontWeight: 'bold', fontSize: 14, marginBottom: 2 }}>
                       Advocate High Court
                     </Text>

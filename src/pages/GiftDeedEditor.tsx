@@ -172,8 +172,10 @@ const PreviewPage = memo(function PreviewPage({
               <img src="/1.png" alt="Logo 1" className="h-14 w-14 sm:h-20 sm:w-20 md:h-24 md:w-24 shrink-0" />
               <div className="flex-1 px-1 min-w-0">
                 <div className="inline-block">
-                  <h2 className="font-bold text-base sm:text-xl md:text-2xl m-0">Mr. Sameer Shrikant Vispute</h2>
-                  <small className="block text-right">BLS., LLB., DIPL</small>
+                  <h2 className="font-bold text-base sm:text-xl md:text-2xl m-0 flex items-baseline justify-center gap-2">
+                    <span>Mr. Sameer Shrikant Vispute</span>
+                    <span className="text-xs sm:text-sm md:text-base font-normal">BLS., LLB., DIPL</span>
+                  </h2>
                   <h4 className="font-bold text-base sm:text-lg md:text-xl m-0">Advocate High Court</h4>
                 </div>
                 <div className="font-black text-sm sm:text-base md:text-[1.1rem] leading-tight my-1.5 uppercase tracking-wide" style={{ color: "#b30000" }}>
