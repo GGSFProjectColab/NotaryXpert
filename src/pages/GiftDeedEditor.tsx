@@ -128,6 +128,7 @@ interface PreviewPageProps {
   totalPages: number;
   isLastPage: boolean;
   totalDocumentPages: number;
+  basePdfPageCount?: number;
   srNo: string;
   docDate: string;
   kNo: string;
@@ -143,6 +144,7 @@ const PreviewPage = memo(function PreviewPage({
   totalPages,
   isLastPage,
   totalDocumentPages,
+  basePdfPageCount = 0,
   srNo,
   docDate,
   kNo,
@@ -248,7 +250,7 @@ const PreviewPage = memo(function PreviewPage({
         </div>
 
         <div className="absolute bottom-[30px] left-0 right-0 text-center text-xs" style={{ color: "rgba(0,0,0,0.7)" }}>
-          Page {pageIndex + 1} of {totalPages}
+          Page {pageIndex + 1 + basePdfPageCount} of {totalDocumentPages}
         </div>
       </article>
     </div>
@@ -1175,20 +1177,43 @@ export function GiftDeedEditor() {
 
     const notaryPdfArrayBuffer = await blob.arrayBuffer();
 
-    if (basePdfFile && docA) {
-      try {
-        const docB = await PDFLib.PDFDocument.load(notaryPdfArrayBuffer);
-        const mergedDoc = await PDFLib.PDFDocument.create();
+    try {
+      const docB = await PDFLib.PDFDocument.load(notaryPdfArrayBuffer);
+      const mergedDoc = await PDFLib.PDFDocument.create();
+
+      if (basePdfFile && docA) {
         const copiedPagesA = await mergedDoc.copyPages(docA, docA.getPageIndices());
         copiedPagesA.forEach((page: any) => mergedDoc.addPage(page));
-        const copiedPagesB = await mergedDoc.copyPages(docB, docB.getPageIndices());
-        copiedPagesB.forEach((page: any) => mergedDoc.addPage(page));
-        const mergedPdfBytes = await mergedDoc.save();
-        return new Blob([mergedPdfBytes], { type: 'application/pdf' });
-      } catch (e) {
-        console.error("PDF Merge Failed:", e);
-        alert("Failed to merge the Original PDF. Processing the standalone Notary Page instead.");
       }
+
+      const copiedPagesB = await mergedDoc.copyPages(docB, docB.getPageIndices());
+      copiedPagesB.forEach((page: any) => mergedDoc.addPage(page));
+
+      const font = await mergedDoc.embedFont(PDFLib.StandardFonts.TimesRoman);
+      const totalPhysicalPages = mergedDoc.getPageCount();
+      const totalDisplayPages = finalDocumentPageCount || totalPhysicalPages;
+      const fontSize = 10;
+
+      for (let i = 0; i < totalPhysicalPages; i++) {
+        const page = mergedDoc.getPage(i);
+        const { width } = page.getSize();
+        const text = `Page ${i + 1} of ${totalDisplayPages}`;
+        const textWidth = font.widthOfTextAtSize(text, fontSize);
+
+        page.drawText(text, {
+          x: (width - textWidth) / 2,
+          y: 25,
+          size: fontSize,
+          font: font,
+          color: PDFLib.rgb(0.2, 0.2, 0.2),
+        });
+      }
+
+      const mergedPdfBytes = await mergedDoc.save();
+      return new Blob([mergedPdfBytes], { type: 'application/pdf' });
+    } catch (e) {
+      console.error("PDF Merge & Page Numbering Failed:", e);
+      alert("Failed to process document page numbers. Processing standalone PDF.");
     }
 
     return new Blob([notaryPdfArrayBuffer], { type: 'application/pdf' });
@@ -1859,6 +1884,7 @@ Contact Details : Mob. 8286000888 / 9933806888 | Email - advsameervispute@gmail.
                 totalPages={notaryGeneratedPageCount}
                 isLastPage={pageIndex === notaryGeneratedPageCount - 1}
                 totalDocumentPages={finalDocumentPageCount}
+                basePdfPageCount={previewBasePdfPageCount}
                 srNo={previewSrNo}
                 docDate={previewDocDate}
                 kNo={previewKNo}

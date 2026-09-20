@@ -347,11 +347,6 @@ const NotaryPdfTemplate: React.FC<NotaryPdfTemplateProps> = ({
 
 
 
-            <Text
-              style={styles.pageNumber}
-              render={({ pageNumber }) => `Page ${pageNumber} of ${chunks.length}`}
-              fixed
-            />
           </Page>
         );
       })}
